@@ -18,15 +18,14 @@
         >
             <transition name="fade">
                 <div
-                    id="shader"
                     v-if="playerHovered && canvasLoaded"
-                    @mouseenter="playerHovered = true"
-                    @mouseleave="playerHovered = false"
+                    id="shader"
+                    @mouseover="playerHovered = true"
                 ></div>
             </transition>
             <div id="loaded">
                 <div class="introduction">
-                    <input type="file" id="file-input" @click="rotate" title=" ">
+                    <input type="file" id="file-input" @click="rotate" title=" " />
 
                     <!-- <p>
                         Upload an
@@ -51,19 +50,18 @@
                 <p>
                     Transcribing
                     <span class="secondary--text">{{fileName}}</span>
-                    <br>
-                    <span
-                        class="cpuWarning"
-                    >Please wait while your neural networks are hard at work!</span>
+                    <br />
+                    <span class="cpuWarning">Please wait while our model is hard at work!</span>
                 </p>
             </div>
             <div class="canvasWrap" id="canvasWrap">
                 <canvas id="canvas"></canvas>
+            </div>
+            <div id="controlWrap">
                 <transition name="fade">
                     <v-btn
                         v-if="playerHovered"
-                        @mouseenter="playerHovered = true"
-                        @mouseleave="playerHovered = false"
+                        @mouseover="playerHovered = true"
                         id="playButton"
                         fab
                         dark
@@ -81,11 +79,7 @@
                     </v-btn>
                 </transition>
                 <transition name="fade">
-                    <p
-                        v-if="playerHovered"
-                        @mouseenter="playerHovered = true"
-                        @mouseleave="playerHovered = false"
-                    >{{fileName}}</p>
+                    <p v-if="playerHovered" @mouseover="playerHovered = true">{{fileName}}</p>
                 </transition>
             </div>
         </div>
@@ -97,32 +91,46 @@
             <p
                 class="p2"
                 style="display: none; opacity: 0"
-            >Please allow about half the duration of the audio to transcribe...</p>
+            >Please allow about half the duration of the audio to transcribe. Transcription will take longer without a GPU.</p>
         </div>
 
-        <transition name="fade" v-if="canvasLoaded">
-            <div class="control">
-                <v-container>
-                    <v-layout>
-                        <v-flex sm4>
-                            <v-text-field
-                                class="temperature"
-                                v-model="temperature"
-                                label="Temperature"
-                                background-color="#2f3d46"
-                                box
-                            ></v-text-field>
-                        </v-flex>
-                        <v-flex sm3>
-                            <v-text-field class="steps" v-model="steps" label="Steps"></v-text-field>
-                        </v-flex>
-                        <v-flex sm3>
-                            <v-btn outline color="primary" @click="generateMusic">Generate Music!</v-btn>
-                        </v-flex>
-                    </v-layout>
-                </v-container>
+        <div class="control">
+            <div class="params">
+                <v-text-field
+                    dark
+                    class="temperature"
+                    v-model="temperature"
+                    label="Temperature"
+                    background-color="#2f3d46"
+                    box
+                ></v-text-field>
+                <v-text-field
+                    dark
+                    class="steps"
+                    box
+                    v-model="steps"
+                    label="Steps"
+                    background-color="#2f3d46"
+                ></v-text-field>
+                <v-text-field
+                    dark
+                    class="chordProgression"
+                    v-model="chordProgression"
+                    label="Chord Progression"
+                    background-color="#2f3d46"
+                    box
+                ></v-text-field>
             </div>
-        </transition>
+            <div style="clear:both"></div>
+            <div class="submit">
+                <v-btn
+                    class="generate-button"
+                    outline
+                    color="primary"
+                    @click="generateMusic"
+                >Generate Music!</v-btn>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -154,7 +162,8 @@ export default {
             rotated: 90,
             //Music generation options
             steps: 500,
-            temperature: 1
+            temperature: 1,
+            chordProgression: "I, vi, IV, V, I"
         };
     },
     mounted: function() {
@@ -171,7 +180,6 @@ export default {
         });
         tl.from(".container", 0.5, {
             opacity: 0,
-            scaleY: 0,
             ease: Expo.easeOut
         })
             .from(".player", 0.5, {
@@ -190,6 +198,8 @@ export default {
             const fileInput = document.getElementById("file-input");
             fileInput.addEventListener("change", e => {
                 this.fileName = e.target.files[0].name;
+
+                //ANIMATION SEQUENCE for after file is uploaded
                 var tl = new TimelineMax({
                     onComplete: () => {
                         this.transcriptionModel.initialize().then(() => {
@@ -224,6 +234,7 @@ export default {
             });
         },
         async transcribeFile(file) {
+            //Transcribe the music
             await this.transcriptionModel
                 .transcribeFromAudioFile(file)
                 .then(noteSequence => {
@@ -231,17 +242,50 @@ export default {
                         noteSequence,
                         8
                     );
-                    var tl = new TimelineMax();
 
+                    //ANIMATION SEQUENCE for after music is transcribed
+                    var tl = new TimelineMax();
                     tl.to("#visualizerLoader", 0.5, {
                         opacity: 0,
                         y: 20,
                         display: "none"
-                    }).to("#canvasWrap", 0.5, {
-                        display: "block",
-                        opacity: 1,
-                        y: 0
-                    });
+                    })
+                        .to(
+                            ".description",
+                            0.5,
+                            {
+                                opacity: 0,
+                                y: 20,
+                                display: "none"
+                            },
+                            "-=0.25"
+                        )
+                        .to("#canvasWrap", 0.5, {
+                            display: "block",
+                            opacity: 1,
+                            y: 0
+                        })
+                        .to("#controlWrap", 0.5, {
+                            display: "block",
+                            opacity: 1
+                        })
+                        .to(
+                            ".container",
+                            0.5,
+                            {
+                                maxHeight: "710px"
+                            },
+                            "-=0.25"
+                        )
+                        .to(
+                            ".control",
+                            0.5,
+                            {
+                                display: "block",
+                                opacity: 1
+                            },
+                            "-=0.25"
+                        );
 
                     //Get properties
                     this.audioDuration = this.noteSequence.timeSignatures;
@@ -253,7 +297,7 @@ export default {
                         noteRGB: "234, 234, 236",
                         activeNoteRGB: "52, 201, 178"
                     };
-                    this.visualizer = new mm.Visualizer(
+                    this.visualizer = new mm.PianoRollCanvasVisualizer(
                         this.noteSequence,
                         document.getElementById("canvas"),
                         config
@@ -275,7 +319,7 @@ export default {
                 });
         },
         togglePlayer() {
-            //Handles clicks on the player depending on playerState
+            //Handles player click
             if (this.canvasLoaded === true) {
                 if (
                     //Player not started
@@ -315,7 +359,7 @@ export default {
                             noteRGB: "234, 234, 236",
                             activeNoteRGB: "184, 54, 200"
                         };
-                        this.visualizer = new mm.Visualizer(
+                        this.visualizer = new mm.PianoRollCanvasVisualizer(
                             newSequence,
                             document.getElementById("canvas"),
                             config
@@ -349,7 +393,7 @@ export default {
     margin-top: 50px;
     margin-bottom: 75px;
     width: 1000px;
-    max-height: 510px !important;
+    max-height: 510px;
     border-radius: 5px;
     padding: 0;
     opacity: 1;
@@ -369,6 +413,7 @@ export default {
         text-align: center;
         height: 80px;
         padding: 15px;
+        font-weight: 200;
         p {
             font-size: 20px;
             margin-top: 8px;
@@ -398,7 +443,7 @@ export default {
             height: 100%;
             margin-top: -40px;
             position: absolute;
-            z-index: -1;
+            z-index: 2;
             background: rgba(50, 56, 58, 0.7);
         }
         #loaded {
@@ -467,6 +512,7 @@ export default {
             margin: auto;
             display: none;
             opacity: 0;
+            position: relative;
             #canvas {
                 display: block;
                 width: 100% !important;
@@ -474,10 +520,18 @@ export default {
                 height: 100% !important;
                 color: #764b7c;
             }
+        }
+        #controlWrap {
+            display: none;
+            height: 100%;
+            width: 100%;
+            margin-top: -270px;
+            opacity: 0;
             #playButton {
                 position: absolute;
-                top: 90px;
-                right: 45%;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
                 z-index: 100;
                 background: rgba(74, 218, 210, 0.1) !important;
                 i {
@@ -486,34 +540,57 @@ export default {
             }
             p {
                 position: absolute;
-                bottom: 35px;
+                bottom: 50px;
                 width: 100%;
                 margin-left: 0px;
                 text-align: center;
                 z-index: 10000 !important;
-                font-size: 17px;
-                font-weight: 200;
+                font-size: 20px;
+                font-weight: 400;
+                color: rgba(255, 255, 255, 0.74);
             }
         }
     }
     .control {
+        display: none;
+        opacity: 0;
         .flex {
             align-items: center;
             margin: auto;
         }
-        .temperature {
-            width: 300px;
+        .params {
+            width: 100%;
             margin: auto;
+            padding: 30px;
+            text-align: center;
+            display: flex;
+            align-content: center;
+            .temperature {
+                width: 70px;
+                margin: 20px;
+            }
+            .steps {
+                display: inline;
+                width: 70px;
+                margin: 20px;
+            }
+            .chordProgression {
+                width: 220px;
+                margin: 20px;
+            }
         }
-        .steps {
-            width: 200px;
-            margin: auto;
-        }
-        .v-btn {
-            width: 200px;
-            margin: auto;
-            height: 60px;
-            margin-top: -25px;
+        .submit {
+            width: 100%;
+            display: flex;
+            align-content: center;
+            .generate-button {
+                float: none;
+                width: 200px;
+                margin: auto;
+                // text-align: center;
+                height: 60px;
+                margin-top: -25px;
+            }
         }
     }
 }
